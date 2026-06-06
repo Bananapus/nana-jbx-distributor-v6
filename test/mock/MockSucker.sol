@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {JBSuckerState} from "@bananapus/suckers-v6/src/enums/JBSuckerState.sol";
 import {JBClaim} from "@bananapus/suckers-v6/src/structs/JBClaim.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {MockJBToken} from "./MockJBToken.sol";
 
 /// @notice Sucker mock that records outbound prepares and mints claimed project tokens to leaf beneficiaries.
 contract MockSucker {
     using SafeERC20 for IERC20;
+
+    //*********************************************************************//
+    // --------------------- public stored properties -------------------- //
+    //*********************************************************************//
 
     /// @notice The terminal token from the most recent `prepare`.
     address public lastTerminalToken;
@@ -47,6 +51,10 @@ contract MockSucker {
     /// @custom:param index The leaf index.
     mapping(address token => mapping(uint256 index => bytes32 hash)) public executedLeafHashOf;
 
+    //*********************************************************************//
+    // -------------------------- constructor ---------------------------- //
+    //*********************************************************************//
+
     /// @notice Initialize the mock sucker.
     /// @param initialProjectId The project ID the sucker belongs to.
     /// @param initialPeerChainId The peer chain ID.
@@ -64,6 +72,10 @@ contract MockSucker {
         rewardToken = initialRewardToken;
         state = JBSuckerState.ENABLED;
     }
+
+    //*********************************************************************//
+    // ---------------------- external transactions ---------------------- //
+    //*********************************************************************//
 
     /// @notice Claim a bridged leaf by minting destination project tokens to its beneficiary.
     /// @param claimData The claim to execute.

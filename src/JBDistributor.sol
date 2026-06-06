@@ -126,7 +126,7 @@ abstract contract JBDistributor is IJBDistributor {
     /// @notice The duration of each round, specified in seconds.
     uint256 public immutable override ROUND_DURATION;
 
-    /// @notice The Revnet loans contract used to borrow against vested revnet rewards.
+    /// @notice The Revnet loans contract that borrows against vested revnet rewards.
     IREVLoans public immutable override REV_LOANS;
 
     /// @notice The REVOwner contract that must own a reward token's project to enable loan-backed collection.
@@ -225,7 +225,7 @@ abstract contract JBDistributor is IJBDistributor {
 
     /// @notice Initializes the shared distributor configuration.
     /// @param controller The JB controller used for token registry lookups and revnet loan permissions.
-    /// @param revLoans The Revnet loans contract used to borrow against vested revnet rewards.
+    /// @param revLoans The Revnet loans contract that borrows against vested revnet rewards.
     /// @param revOwner The REVOwner contract that must own revnet reward token projects.
     /// @param initialRoundDuration The duration of each round, specified in seconds.
     /// @param initialVestingRounds The number of rounds until tokens are fully vested.
@@ -269,8 +269,8 @@ abstract contract JBDistributor is IJBDistributor {
 
     /// @notice Begin vesting all unclaimed past reward rounds for the specified token IDs.
     /// @dev Permissionless. Materializes each token ID's pro-rata share of every past reward round into fresh vesting
-    /// entries that start now and unlock over `VESTING_ROUNDS`. Current-round funding is excluded until a later round
-    /// starts. The model-specific per-round claim math and token ID validation live in the `_claimPastRewards` and
+    /// entries that unlock over `VESTING_ROUNDS`. Current-round funding is excluded until a later round starts. The
+    /// model-specific per-round claim math and token ID validation live in the `_claimPastRewards` and
     /// `_validateTokenIds` hooks each concrete distributor implements.
     /// @param hook The hook whose stakers are vesting.
     /// @param tokenIds The staker token IDs to claim rewards for.
@@ -378,7 +378,7 @@ abstract contract JBDistributor is IJBDistributor {
     /// @param hook The hook the tokenId belongs to.
     /// @param tokenId The ID of the staker token to calculate for.
     /// @param token The reward token to check.
-    /// @return tokenAmount The amount of tokens that can be collected right now via `collectVestedRewards`.
+    /// @return tokenAmount The amount of tokens that can be collected via `collectVestedRewards`.
     function collectableFor(
         address hook,
         uint256 tokenId,
@@ -497,7 +497,7 @@ abstract contract JBDistributor is IJBDistributor {
         JBVestingLoan memory vestingLoan = _vestingLoanOf[loanId];
         if (vestingLoan.hook == address(0)) revert JBDistributor_NoVestingLoan({loanId: loanId});
 
-        // Use Revnet's current fee quote to determine the amount needed to repay this loan now.
+        // Use Revnet's current fee quote to determine the amount needed to repay this loan.
         REVLoan memory loan = REV_LOANS.loanOf(loanId);
         uint256 repayBorrowAmount =
             uint256(loan.amount) + REV_LOANS.determineSourceFeeAmount({loan: loan, amount: loan.amount});
@@ -602,7 +602,7 @@ abstract contract JBDistributor is IJBDistributor {
         // Validate token IDs before a permissionless helper can materialize vesting state.
         _validateTokenIds({hook: hook, tokenIds: tokenIds});
 
-        // Materialize all unclaimed historical reward rounds into fresh vesting entries that start now.
+        // Materialize all unclaimed historical reward rounds into fresh vesting entries for this claim.
         _claimPastRewards({hook: hook, groupId: groupId, tokenIds: tokenIds, tokens: tokens});
     }
 
@@ -943,7 +943,7 @@ abstract contract JBDistributor is IJBDistributor {
                 allowance: allowance
             });
 
-            // Clear the temporary allowance for tokens that require explicit reset.
+            // Clear the single-use allowance for tokens that require explicit reset.
             sourceToken.forceApprove({spender: address(REV_LOANS), value: 0});
         }
     }
@@ -1459,7 +1459,7 @@ abstract contract JBDistributor is IJBDistributor {
     /// @param groupId The reward group (0 = the default group).
     /// @param tokenId The ID of the staker token to calculate for.
     /// @param token The reward token to check.
-    /// @return tokenAmount The amount of tokens that can be collected right now.
+    /// @return tokenAmount The amount of tokens that can be collected.
     function _collectableFor(
         address hook,
         uint256 groupId,
@@ -1473,7 +1473,7 @@ abstract contract JBDistributor is IJBDistributor {
         // A loan keeps this token ID's vesting rewards in collateral custody until the loan is repaid.
         if (activeVestingLoanIdOf[hook][groupId][tokenId][token] != 0) return 0;
 
-        // The round that we are in right now.
+        // Use the active round as the unlock checkpoint.
         uint256 round = currentRound();
 
         // Keep a reference to the latest vested index.
@@ -1631,7 +1631,7 @@ abstract contract JBDistributor is IJBDistributor {
         tokenIds;
     }
 
-    /// @notice The stake weight of a specific token ID, used to calculate its pro-rata share of distributions.
+    /// @notice The stake weight of a specific token ID for pro-rata reward calculations.
     /// @dev Subclasses define how stake is measured.
     /// @param hook The hook the token belongs to.
     /// @param tokenId The ID of the token to get the stake weight of.

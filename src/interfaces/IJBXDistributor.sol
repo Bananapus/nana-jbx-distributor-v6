@@ -90,7 +90,7 @@ interface IJBXDistributor is IJBDistributor, IJBSplitHook {
     // ----------------------------- views ------------------------------- //
     //*********************************************************************//
 
-    /// @notice The JB directory used to verify terminal/controller callers.
+    /// @notice The JB directory that verifies terminal/controller callers.
     /// @return directory The JB directory.
     function DIRECTORY() external view returns (IJBDirectory directory);
 
@@ -102,11 +102,11 @@ interface IJBXDistributor is IJBDistributor, IJBSplitHook {
     /// @return mainnetChainId The mainnet chain ID.
     function MAINNET_CHAIN_ID() external view returns (uint256 mainnetChainId);
 
-    /// @notice The sucker registry used to authenticate cross-chain project suckers.
+    /// @notice The sucker registry that authenticates cross-chain project suckers.
     /// @return suckerRegistry The sucker registry.
     function SUCKER_REGISTRY() external view returns (IJBSuckerRegistry suckerRegistry);
 
-    /// @notice The JB token registry used to resolve each project's project token.
+    /// @notice The JB token registry that resolves each project's project token.
     /// @return tokens The token registry.
     function TOKENS() external view returns (IJBTokens tokens);
 

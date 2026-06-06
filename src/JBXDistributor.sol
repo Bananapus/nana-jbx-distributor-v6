@@ -123,16 +123,16 @@ contract JBXDistributor is JBDistributor, Ownable, IJBXDistributor {
     // ---------------- public immutable stored properties --------------- //
     //*********************************************************************//
 
-    /// @notice The JB directory used to verify terminal/controller callers.
+    /// @notice The JB directory that verifies terminal/controller callers.
     IJBDirectory public immutable override DIRECTORY;
 
     /// @notice The chain ID where JBX rewards are distributed.
     uint256 public immutable override MAINNET_CHAIN_ID;
 
-    /// @notice The sucker registry used to authenticate cross-chain project suckers.
+    /// @notice The sucker registry that authenticates cross-chain project suckers.
     IJBSuckerRegistry public immutable override SUCKER_REGISTRY;
 
-    /// @notice The JB token registry used to resolve each project's project token.
+    /// @notice The JB token registry that resolves each project's project token.
     IJBTokens public immutable override TOKENS;
 
     //*********************************************************************//
@@ -169,11 +169,11 @@ contract JBXDistributor is JBDistributor, Ownable, IJBXDistributor {
     //*********************************************************************//
 
     /// @notice Initializes the JBX distributor.
-    /// @param directory The JB directory used to verify terminal/controller callers.
-    /// @param controller The JB controller used for token registry lookups and revnet loan permissions.
-    /// @param tokens The JB token registry used to resolve each project's project token.
-    /// @param suckerRegistry The sucker registry used to authenticate project suckers.
-    /// @param revLoans The Revnet loans contract used to borrow against vested revnet rewards.
+    /// @param directory The JB directory that verifies terminal/controller callers.
+    /// @param controller The JB controller for token registry lookups and revnet loan permissions.
+    /// @param tokens The JB token registry that resolves each project's project token.
+    /// @param suckerRegistry The sucker registry that authenticates project suckers.
+    /// @param revLoans The Revnet loans contract that borrows against vested revnet rewards.
     /// @param revOwner The REVOwner contract that must own revnet reward token projects.
     /// @param owner The admin allowed to set JBX once.
     /// @param mainnetChainId The chain ID where JBX rewards are distributed.

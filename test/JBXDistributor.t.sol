@@ -37,10 +37,10 @@ contract JBXDistributorTest is Test {
     /// @notice Another JBX staker used as an inactive holder.
     address internal constant _BOB = address(0xB0B);
 
-    /// @notice A delegate address used to show rewards stay with the holder.
+    /// @notice A delegate address that shows rewards stay with the holder.
     address internal constant _DELEGATE = address(0xD3136A7E);
 
-    /// @notice A helper address used to call permissionless vesting and collection paths.
+    /// @notice A helper address that calls permissionless vesting and collection paths.
     address internal constant _HELPER = address(0xE1E1);
 
     /// @notice The configured mainnet chain ID.
@@ -58,16 +58,16 @@ contract JBXDistributorTest is Test {
     /// @notice The distributor under test.
     JBXDistributor internal _distributor;
 
-    /// @notice Mock directory used to authorize split callers.
+    /// @notice Mock directory that authorizes split callers.
     MockDirectory internal _directory;
 
     /// @notice Mock JBX token used as the active-vote staking token.
     MockJBX internal _jbx;
 
-    /// @notice Mock token registry used to resolve project tokens.
+    /// @notice Mock token registry that resolves project tokens.
     MockTokens internal _tokens;
 
-    /// @notice Mock sucker registry used to authorize project suckers.
+    /// @notice Mock sucker registry that authorizes project suckers.
     MockSuckerRegistry internal _suckerRegistry;
 
     /// @notice Reward token accepted on mainnet split funding.

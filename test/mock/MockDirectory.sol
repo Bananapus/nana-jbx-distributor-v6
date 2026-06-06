@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IJBTerminal} from "@bananapus/core-v6/src/interfaces/IJBTerminal.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /// @notice Minimal directory mock for split-hook caller authorization tests.
 contract MockDirectory {

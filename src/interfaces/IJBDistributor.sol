@@ -159,7 +159,7 @@ interface IJBDistributor {
     /// @return roundDuration The round duration, in seconds.
     function ROUND_DURATION() external view returns (uint256 roundDuration);
 
-    /// @notice The Revnet loans contract used to borrow against vesting revnet rewards.
+    /// @notice The Revnet loans contract that borrows against vesting revnet rewards.
     /// @return revLoans The Revnet loans contract.
     function REV_LOANS() external view returns (IREVLoans revLoans);
 
