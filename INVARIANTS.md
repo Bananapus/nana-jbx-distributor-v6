@@ -30,12 +30,13 @@
 
 - `claimRemoteRewards` is mainnet-only.
 - The origin chain ID must be nonzero and different from mainnet.
-- The sucker must be registered for the destination project.
+- The sucker must be registered for the mainnet destination project.
+- The sucker must report the mainnet destination project ID and the origin chain ID as its peer chain.
 - The claimed leaf beneficiary must be this distributor.
-- The claimed leaf metadata must match the asserted origin chain and project.
+- The claimed leaf metadata must match the asserted origin chain and origin project.
 - A leaf identified by `(sucker, terminalToken, leafIndex)` can settle only once.
 - If a sucker leaf was already claimed, its stored hash must match the provided leaf contents.
-- The destination project token resolved from `IJBTokens.tokenOf(projectId)` is the reward token recorded for JBX.
+- The destination project token resolved from `IJBTokens.tokenOf(mainnetProjectId)` is the reward token recorded for JBX.
 
 ## Reward Rounds
 

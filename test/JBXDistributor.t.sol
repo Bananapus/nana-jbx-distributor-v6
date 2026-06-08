@@ -13,12 +13,14 @@ import {IJBTokens} from "@bananapus/core-v6/src/interfaces/IJBTokens.sol";
 import {JBConstants} from "@bananapus/core-v6/src/libraries/JBConstants.sol";
 import {JBSplit} from "@bananapus/core-v6/src/structs/JBSplit.sol";
 import {JBSplitHookContext} from "@bananapus/core-v6/src/structs/JBSplitHookContext.sol";
+import {JBSuckerState} from "@bananapus/suckers-v6/src/enums/JBSuckerState.sol";
 import {IJBSucker} from "@bananapus/suckers-v6/src/interfaces/IJBSucker.sol";
 import {IJBSuckerRegistry} from "@bananapus/suckers-v6/src/interfaces/IJBSuckerRegistry.sol";
 import {JBClaim} from "@bananapus/suckers-v6/src/structs/JBClaim.sol";
 import {JBLeaf} from "@bananapus/suckers-v6/src/structs/JBLeaf.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import {JBDistributor} from "../src/JBDistributor.sol";
 import {JBXDistributor} from "../src/JBXDistributor.sol";
 import {IREVLoans} from "../src/interfaces/IREVLoans.sol";
 import {IREVOwner} from "../src/interfaces/IREVOwner.sol";
@@ -28,6 +30,98 @@ import {MockJBX} from "./mock/MockJBX.sol";
 import {MockSucker} from "./mock/MockSucker.sol";
 import {MockSuckerRegistry} from "./mock/MockSuckerRegistry.sol";
 import {MockTokens} from "./mock/MockTokens.sol";
+
+/// @notice Sucker mock that performs a nested distributor settlement during `claim`.
+contract NestedClaimSucker {
+    /// @notice The terminal-token/project-token leaf hashes recorded as executed.
+    mapping(address token => mapping(uint256 index => bytes32 hash)) public executedLeafHashOf;
+
+    /// @notice The peer chain ID this mock sucker sends to.
+    uint256 public peerChainId;
+
+    /// @notice The project ID this mock sucker belongs to.
+    uint256 public projectId;
+
+    /// @notice The current sucker state.
+    JBSuckerState public state;
+
+    /// @notice Distributor reentered from `claim`.
+    JBXDistributor internal _distributor;
+
+    /// @notice The origin chain used by the nested settlement.
+    uint256 internal _originChainId;
+
+    /// @notice The origin project used by the nested settlement.
+    uint256 internal _originProjectId;
+
+    /// @notice The claim to settle while the outer claim is still measuring balance delta.
+    JBClaim internal _nestedClaim;
+
+    /// @notice Destination project token minted by `claim`.
+    MockJBToken internal _rewardToken;
+
+    /// @notice Whether the nested settlement has already been attempted.
+    bool internal _reentered;
+
+    constructor(
+        JBXDistributor distributor,
+        MockJBToken rewardToken,
+        uint256 initialProjectId,
+        uint256 initialPeerChainId,
+        uint256 initialOriginProjectId
+    ) {
+        _distributor = distributor;
+        _rewardToken = rewardToken;
+        projectId = initialProjectId;
+        peerChainId = initialPeerChainId;
+        state = JBSuckerState.ENABLED;
+        _originChainId = initialPeerChainId;
+        _originProjectId = initialOriginProjectId;
+    }
+
+    /// @notice Store the claim to execute recursively during the next outer claim.
+    function setNestedClaim(JBClaim calldata claimData) external {
+        _nestedClaim = claimData;
+    }
+
+    /// @notice Claim a bridged leaf by minting destination project tokens to its beneficiary.
+    function claim(JBClaim calldata claimData) external {
+        executedLeafHashOf[claimData.token][claimData.leaf.index] = keccak256(
+            abi.encodePacked(
+                claimData.leaf.projectTokenCount,
+                claimData.leaf.terminalTokenAmount,
+                claimData.leaf.beneficiary,
+                claimData.leaf.metadata
+            )
+        );
+
+        if (!_reentered && _nestedClaim.leaf.projectTokenCount != 0) {
+            _reentered = true;
+            _distributor.claimRemoteRewards({
+                originChainId: _originChainId,
+                originProjectId: _originProjectId,
+                mainnetProjectId: projectId,
+                sucker: IJBSucker(address(this)),
+                claimData: _nestedClaim
+            });
+        }
+
+        _rewardToken.mint({
+            account: address(uint160(uint256(claimData.leaf.beneficiary))), amount: claimData.leaf.projectTokenCount
+        });
+    }
+
+    /// @notice Claim multiple bridged leaves.
+    function claim(JBClaim[] calldata claims) external {
+        for (uint256 i; i < claims.length;) {
+            this.claim(claims[i]);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+}
 
 /// @notice Unit tests for the JBX-only distributor and its split/sucker reward paths.
 contract JBXDistributorTest is Test {
@@ -284,7 +378,8 @@ contract JBXDistributorTest is Test {
 
         uint256 rewardAmount = _distributor.claimRemoteRewards({
             originChainId: _REMOTE_CHAIN_ID,
-            projectId: _PROJECT_ID,
+            originProjectId: _PROJECT_ID,
+            mainnetProjectId: _PROJECT_ID,
             sucker: IJBSucker(address(sucker)),
             claimData: claimData
         });
@@ -304,6 +399,97 @@ contract JBXDistributorTest is Test {
         assertEq(claimDeadline, block.timestamp + _ROUND_DURATION + 2 days);
         assertEq(totalStake, 1000 ether);
         assertEq(_projectToken.balanceOf(address(_distributor)), 250 ether);
+    }
+
+    /// @notice Mainnet settlement accepts distinct origin and mainnet project IDs.
+    function test_claimRemoteRewards_settlesLeafWithDifferentOriginProjectId() external {
+        vm.chainId(_MAINNET_CHAIN_ID);
+        vm.roll(300);
+
+        uint256 originProjectId = _PROJECT_ID + 1000;
+        uint256 snapshotBlock = block.number - 1;
+        _jbx.setPastTotalActiveVotes({blockNumber: snapshotBlock, activeVotes: 1000 ether});
+
+        MockSucker sucker = new MockSucker({
+            initialProjectId: _PROJECT_ID,
+            initialPeerChainId: _REMOTE_CHAIN_ID,
+            initialProjectToken: IERC20(address(_projectToken)),
+            initialRewardToken: _projectToken
+        });
+        _suckerRegistry.setIsSuckerOf({projectId: _PROJECT_ID, addr: address(sucker), isSucker: true});
+
+        JBClaim memory claimData = _claim({
+            terminalToken: address(_rewardToken),
+            index: 1,
+            projectTokenCount: 250 ether,
+            terminalTokenAmount: 125 ether,
+            metadata: _distributor.packLeafMetadata({originChainId: _REMOTE_CHAIN_ID, projectId: originProjectId})
+        });
+
+        uint256 rewardAmount = _distributor.claimRemoteRewards({
+            originChainId: _REMOTE_CHAIN_ID,
+            originProjectId: originProjectId,
+            mainnetProjectId: _PROJECT_ID,
+            sucker: IJBSucker(address(sucker)),
+            claimData: claimData
+        });
+
+        (uint208 roundAmount,,,,) = _distributor.rewardRoundOf({
+            hook: address(_jbx), groupId: 0, token: IERC20(address(_projectToken)), round: 0
+        });
+
+        assertEq(rewardAmount, 250 ether);
+        assertEq(roundAmount, 250 ether);
+        assertEq(_projectToken.balanceOf(address(_distributor)), 250 ether);
+    }
+
+    /// @notice Mainnet settlement rejects nested reward-accounting mutations while measuring a claim.
+    function test_claimRemoteRewards_revertsNestedSettlementDuringClaim() external {
+        vm.chainId(_MAINNET_CHAIN_ID);
+        vm.roll(300);
+
+        uint256 snapshotBlock = block.number - 1;
+        _jbx.setPastTotalActiveVotes({blockNumber: snapshotBlock, activeVotes: 1000 ether});
+
+        NestedClaimSucker sucker = new NestedClaimSucker({
+            distributor: _distributor,
+            rewardToken: _projectToken,
+            initialProjectId: _PROJECT_ID,
+            initialPeerChainId: _REMOTE_CHAIN_ID,
+            initialOriginProjectId: _PROJECT_ID
+        });
+        _suckerRegistry.setIsSuckerOf({projectId: _PROJECT_ID, addr: address(sucker), isSucker: true});
+
+        bytes32 metadata = _distributor.packLeafMetadata({originChainId: _REMOTE_CHAIN_ID, projectId: _PROJECT_ID});
+        JBClaim memory innerClaim = _claim({
+            terminalToken: address(_rewardToken),
+            index: 2,
+            projectTokenCount: 25 ether,
+            terminalTokenAmount: 12 ether,
+            metadata: metadata
+        });
+        JBClaim memory outerClaim = _claim({
+            terminalToken: address(_rewardToken),
+            index: 1,
+            projectTokenCount: 100 ether,
+            terminalTokenAmount: 50 ether,
+            metadata: metadata
+        });
+        sucker.setNestedClaim(innerClaim);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(JBDistributor.JBDistributor_ReentrantTokenTransfer.selector, address(_projectToken))
+        );
+        _distributor.claimRemoteRewards({
+            originChainId: _REMOTE_CHAIN_ID,
+            originProjectId: _PROJECT_ID,
+            mainnetProjectId: _PROJECT_ID,
+            sucker: IJBSucker(address(sucker)),
+            claimData: outerClaim
+        });
+
+        assertEq(_projectToken.balanceOf(address(_distributor)), 0);
+        assertEq(_distributor.balanceOf({hook: address(_jbx), token: IERC20(address(_projectToken))}), 0);
     }
 
     /// @notice A settled sucker leaf cannot be recorded into rewards twice.
@@ -331,7 +517,8 @@ contract JBXDistributorTest is Test {
         });
         _distributor.claimRemoteRewards({
             originChainId: _REMOTE_CHAIN_ID,
-            projectId: _PROJECT_ID,
+            originProjectId: _PROJECT_ID,
+            mainnetProjectId: _PROJECT_ID,
             sucker: IJBSucker(address(sucker)),
             claimData: claimData
         });
@@ -343,7 +530,8 @@ contract JBXDistributorTest is Test {
         );
         _distributor.claimRemoteRewards({
             originChainId: _REMOTE_CHAIN_ID,
-            projectId: _PROJECT_ID,
+            originProjectId: _PROJECT_ID,
+            mainnetProjectId: _PROJECT_ID,
             sucker: IJBSucker(address(sucker)),
             claimData: claimData
         });

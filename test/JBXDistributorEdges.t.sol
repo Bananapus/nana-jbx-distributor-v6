@@ -225,7 +225,8 @@ contract JBXDistributorEdgesTest is Test {
         );
         _distributor.claimRemoteRewards({
             originChainId: _MAINNET_CHAIN_ID,
-            projectId: _PROJECT_ID,
+            originProjectId: _PROJECT_ID,
+            mainnetProjectId: _PROJECT_ID,
             sucker: IJBSucker(address(0)),
             claimData: _emptyClaim()
         });

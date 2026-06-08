@@ -41,7 +41,7 @@ interface IJBXDistributor is IJBDistributor, IJBSplitHook {
 
     /// @notice Emitted when a sucker leaf had already been claimed, and this contract authenticated the leaf hash.
     /// @param originChainId The chain that prepared the bridge.
-    /// @param projectId The project whose token rewards were claimed.
+    /// @param projectId The mainnet project whose token rewards were claimed.
     /// @param leafIndex The leaf index in the sucker inbox.
     /// @param rewardAmount The number of project tokens settled into JBX rewards.
     /// @param caller The address that settled the already-claimed leaf.
@@ -60,7 +60,7 @@ interface IJBXDistributor is IJBDistributor, IJBSplitHook {
 
     /// @notice Emitted when a bridged reward leaf is settled into the mainnet JBX reward ledger.
     /// @param originChainId The chain that prepared the bridge.
-    /// @param projectId The project whose token rewards were claimed.
+    /// @param projectId The mainnet project whose token rewards were claimed.
     /// @param terminalToken The terminal token claimed from the sucker leaf.
     /// @param terminalReceived The amount of terminal tokens added back to the destination project.
     /// @param rewardToken The destination project token recorded as rewards for JBX stakers.
@@ -152,13 +152,15 @@ interface IJBXDistributor is IJBDistributor, IJBSplitHook {
 
     /// @notice Settle a proven sucker leaf into the mainnet JBX reward ledger.
     /// @param originChainId The chain that prepared the bridge.
-    /// @param projectId The project whose token rewards are being settled.
+    /// @param originProjectId The origin-chain project whose leaf is being settled.
+    /// @param mainnetProjectId The mainnet project whose token rewards are being settled.
     /// @param sucker The project sucker the claim belongs to.
     /// @param claimData The terminal token, leaf, and Merkle proof from the bridge.
     /// @return rewardAmount The number of destination project tokens recorded as rewards.
     function claimRemoteRewards(
         uint256 originChainId,
-        uint256 projectId,
+        uint256 originProjectId,
+        uint256 mainnetProjectId,
         IJBSucker sucker,
         JBClaim calldata claimData
     )

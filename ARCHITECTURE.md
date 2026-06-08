@@ -32,7 +32,7 @@ remote project split
   -> distributor queues pendingBridgeAmountOf[projectId][projectToken]
   -> keeper calls bridgeToMainnet with a registered sucker that peers to mainnet
   -> sucker prepare writes a leaf whose beneficiary is this distributor and whose metadata identifies origin chain/project
-  -> mainnet keeper calls claimRemoteRewards with the sucker proof
+  -> mainnet keeper calls claimRemoteRewards with the origin project ID, mainnet project ID, and sucker proof
   -> claimed destination project tokens enter the current mainnet JBX reward round
 ```
 

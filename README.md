@@ -48,7 +48,7 @@ collect to that canonical holder, so stakers do not need to submit every reward-
 Remote chains do not distribute directly. A remote project's split sends that project's token to `JBXDistributor` on
 the remote chain. A keeper calls `bridgeToMainnet`, which prepares a sucker leaf with this distributor as the mainnet
 beneficiary and metadata identifying the origin chain and project. On mainnet, `claimRemoteRewards` authenticates the
-leaf and records the destination project tokens as JBX rewards.
+leaf against the origin project ID, then records the mainnet project's destination tokens as JBX rewards.
 
 ## Install
 
