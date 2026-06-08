@@ -981,26 +981,6 @@ contract JBXDistributor is JBDistributor, Ownable, IJBXDistributor {
         if (hook != jbx) revert JBXDistributor_OnlyJBX({hook: hook, jbx: jbx});
     }
 
-    /// @notice Revert unless `sucker` is registered for the mainnet project and peers to the origin chain.
-    /// @param mainnetProjectId The mainnet project whose token rewards are being settled.
-    /// @param originChainId The chain that prepared the bridge.
-    /// @param sucker The sucker to check.
-    function _requireOriginSucker(uint256 mainnetProjectId, uint256 originChainId, IJBSucker sucker) private view {
-        if (!SUCKER_REGISTRY.isSuckerOf({projectId: mainnetProjectId, addr: address(sucker)})) {
-            revert JBXDistributor_NotASucker({projectId: mainnetProjectId, sucker: address(sucker)});
-        }
-
-        uint256 suckerProjectId = sucker.projectId();
-        if (suckerProjectId != mainnetProjectId) {
-            revert JBXDistributor_SuckerProjectMismatch({projectId: mainnetProjectId, suckerProjectId: suckerProjectId});
-        }
-
-        uint256 peerChainId = sucker.peerChainId();
-        if (peerChainId != originChainId) {
-            revert JBXDistributor_SuckerPeerMismatch({expectedChainId: originChainId, actualChainId: peerChainId});
-        }
-    }
-
     /// @notice Revert unless `sucker` is a registered, sending-enabled sucker for `projectId` that peers to mainnet.
     /// @param projectId The project whose sucker is being checked.
     /// @param sucker The sucker to check.
@@ -1022,6 +1002,26 @@ contract JBXDistributor is JBDistributor, Ownable, IJBXDistributor {
         JBSuckerState state = sucker.state();
         if (state != JBSuckerState.ENABLED && state != JBSuckerState.DEPRECATION_PENDING) {
             revert JBXDistributor_SuckerNotSending({sucker: address(sucker), state: state});
+        }
+    }
+
+    /// @notice Revert unless `sucker` is registered for the mainnet project and peers to the origin chain.
+    /// @param mainnetProjectId The mainnet project whose token rewards are being settled.
+    /// @param originChainId The chain that prepared the bridge.
+    /// @param sucker The sucker to check.
+    function _requireOriginSucker(uint256 mainnetProjectId, uint256 originChainId, IJBSucker sucker) private view {
+        if (!SUCKER_REGISTRY.isSuckerOf({projectId: mainnetProjectId, addr: address(sucker)})) {
+            revert JBXDistributor_NotASucker({projectId: mainnetProjectId, sucker: address(sucker)});
+        }
+
+        uint256 suckerProjectId = sucker.projectId();
+        if (suckerProjectId != mainnetProjectId) {
+            revert JBXDistributor_SuckerProjectMismatch({projectId: mainnetProjectId, suckerProjectId: suckerProjectId});
+        }
+
+        uint256 peerChainId = sucker.peerChainId();
+        if (peerChainId != originChainId) {
+            revert JBXDistributor_SuckerPeerMismatch({expectedChainId: originChainId, actualChainId: peerChainId});
         }
     }
 
