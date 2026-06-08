@@ -312,13 +312,15 @@ contract JBXDistributor is JBDistributor, Ownable, IJBXDistributor {
 
     /// @notice Settle a proven sucker leaf into the mainnet JBX reward ledger.
     /// @param originChainId The chain that prepared the bridge.
-    /// @param projectId The project whose token rewards are being settled.
+    /// @param originProjectId The origin-chain project whose leaf is being settled.
+    /// @param mainnetProjectId The mainnet project whose token rewards are being settled.
     /// @param sucker The project sucker the claim belongs to.
     /// @param claimData The terminal token, leaf, and Merkle proof from the bridge.
     /// @return rewardAmount The number of destination project tokens recorded as rewards.
     function claimRemoteRewards(
         uint256 originChainId,
-        uint256 projectId,
+        uint256 originProjectId,
+        uint256 mainnetProjectId,
         IJBSucker sucker,
         JBClaim calldata claimData
     )
@@ -333,15 +335,16 @@ contract JBXDistributor is JBDistributor, Ownable, IJBXDistributor {
         if (originChainId == block.chainid) {
             revert JBXDistributor_MainnetOnly({chainId: originChainId, mainnetChainId: MAINNET_CHAIN_ID});
         }
-        if (projectId == 0) revert JBXDistributor_InvalidProjectId({projectId: projectId});
+        if (originProjectId == 0) revert JBXDistributor_InvalidProjectId({projectId: originProjectId});
+        if (mainnetProjectId == 0) revert JBXDistributor_InvalidProjectId({projectId: mainnetProjectId});
+
+        _requireNotAcceptingToken();
 
         // JBX must be set before rewards can enter the mainnet reward ledger.
         address jbx = _jbxAddress();
 
-        // The sucker must be registered for the destination project that will mint reward tokens to this contract.
-        if (!SUCKER_REGISTRY.isSuckerOf({projectId: projectId, addr: address(sucker)})) {
-            revert JBXDistributor_NotASucker({projectId: projectId, sucker: address(sucker)});
-        }
+        // The sucker must be registered for the mainnet project that mints reward tokens to this contract.
+        _requireOriginSucker({mainnetProjectId: mainnetProjectId, originChainId: originChainId, sucker: sucker});
 
         // The leaf must mint project tokens to this distributor; the sucker proof authenticates the leaf contents.
         bytes32 expectedBeneficiary = _toBytes32(address(this));
@@ -352,7 +355,7 @@ contract JBXDistributor is JBDistributor, Ownable, IJBXDistributor {
         }
 
         // The leaf metadata binds the reward to the asserted source chain and project.
-        bytes32 expectedMetadata = packLeafMetadata({originChainId: originChainId, projectId: projectId});
+        bytes32 expectedMetadata = packLeafMetadata({originChainId: originChainId, projectId: originProjectId});
         if (claimData.leaf.metadata != expectedMetadata) {
             revert JBXDistributor_LeafMetadataMismatch({expected: expectedMetadata, got: claimData.leaf.metadata});
         }
@@ -365,7 +368,10 @@ contract JBXDistributor is JBDistributor, Ownable, IJBXDistributor {
         }
 
         // Destination project tokens are the reward token JBX stakers will claim.
-        IERC20 rewardToken = _projectTokenOf(projectId);
+        IERC20 rewardToken = _projectTokenOf(mainnetProjectId);
+
+        // Reserve the leaf before the external claim. Reverts roll this write back and keep failed claims retryable.
+        settledLeafOf[sucker][claimData.token][claimData.leaf.index] = true;
 
         // A direct `sucker.claim` can be front-run because it is permissionless. Authenticate already-executed leaves
         // by matching the hash the sucker stored at execution time.
@@ -387,27 +393,26 @@ contract JBXDistributor is JBDistributor, Ownable, IJBXDistributor {
             rewardAmount = claimData.leaf.projectTokenCount;
             emit ClaimedFromFrontRun({
                 originChainId: originChainId,
-                projectId: projectId,
+                projectId: mainnetProjectId,
                 leafIndex: claimData.leaf.index,
                 rewardAmount: rewardAmount,
                 caller: msg.sender
             });
         } else {
             // Measure the exact project-token balance delta minted by `sucker.claim`.
+            _acceptingToken = address(rewardToken);
             uint256 rewardBalanceBefore = rewardToken.balanceOf(address(this));
             sucker.claim(claimData);
             rewardAmount = rewardToken.balanceOf(address(this)) - rewardBalanceBefore;
+            _acceptingToken = address(0);
         }
-
-        // Mark the leaf settled after any external claim call, so a stale proof revert can be retried.
-        settledLeafOf[sucker][claimData.token][claimData.leaf.index] = true;
 
         // Mainnet remote rewards join the same current-round JBX ledger as same-chain split rewards.
         _recordRewardFunding({hook: jbx, groupId: 0, token: rewardToken, amount: rewardAmount});
 
         emit RemoteRewardsClaimed({
             originChainId: originChainId,
-            projectId: projectId,
+            projectId: mainnetProjectId,
             terminalToken: claimData.token,
             terminalReceived: claimData.leaf.terminalTokenAmount,
             rewardToken: rewardToken,
@@ -997,6 +1002,26 @@ contract JBXDistributor is JBDistributor, Ownable, IJBXDistributor {
         JBSuckerState state = sucker.state();
         if (state != JBSuckerState.ENABLED && state != JBSuckerState.DEPRECATION_PENDING) {
             revert JBXDistributor_SuckerNotSending({sucker: address(sucker), state: state});
+        }
+    }
+
+    /// @notice Revert unless `sucker` is registered for the mainnet project and peers to the origin chain.
+    /// @param mainnetProjectId The mainnet project whose token rewards are being settled.
+    /// @param originChainId The chain that prepared the bridge.
+    /// @param sucker The sucker to check.
+    function _requireOriginSucker(uint256 mainnetProjectId, uint256 originChainId, IJBSucker sucker) private view {
+        if (!SUCKER_REGISTRY.isSuckerOf({projectId: mainnetProjectId, addr: address(sucker)})) {
+            revert JBXDistributor_NotASucker({projectId: mainnetProjectId, sucker: address(sucker)});
+        }
+
+        uint256 suckerProjectId = sucker.projectId();
+        if (suckerProjectId != mainnetProjectId) {
+            revert JBXDistributor_SuckerProjectMismatch({projectId: mainnetProjectId, suckerProjectId: suckerProjectId});
+        }
+
+        uint256 peerChainId = sucker.peerChainId();
+        if (peerChainId != originChainId) {
+            revert JBXDistributor_SuckerPeerMismatch({expectedChainId: originChainId, actualChainId: peerChainId});
         }
     }
 

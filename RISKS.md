@@ -15,8 +15,8 @@ cashing out project tokens into terminal tokens. A remote split that sends anoth
 ### Sucker Registry Trust
 
 Remote settlement trusts that the registered sucker belongs to the destination project and that its proof system
-authenticates leaves correctly. `claimRemoteRewards` checks registry membership, leaf beneficiary, leaf metadata, and
-leaf idempotency, but cannot repair an incorrectly registered sucker.
+authenticates leaves correctly. `claimRemoteRewards` checks mainnet registry membership, the sucker's local project and
+peer chain, leaf beneficiary, leaf metadata, and leaf idempotency, but cannot repair an incorrectly registered sucker.
 
 ### Snapshot Timing
 
