@@ -279,8 +279,9 @@ contract JBXDistributorEdgesTest is Test {
         uint256 nowRound = _distributor.currentRound();
         assertGt(nowRound, 0, "advanced past round 0");
 
-        (,,, uint48 claimDeadline, uint208 totalStake) =
-            _distributor.rewardRoundOf({hook: address(_jbx), groupId: 0, token: IERC20(address(_rewardToken)), round: 0});
+        (,,, uint48 claimDeadline, uint208 totalStake) = _distributor.rewardRoundOf({
+            hook: address(_jbx), groupId: 0, token: IERC20(address(_rewardToken)), round: 0
+        });
         assertEq(totalStake, 0, "round 0 has zero stake");
         // forge-lint: disable-next-line(block-timestamp)
         assertGt(claimDeadline, block.timestamp, "round 0 is not yet expired");
