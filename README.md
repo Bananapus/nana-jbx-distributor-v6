@@ -19,6 +19,10 @@ The package is intentionally narrow:
 - [INVARIANTS.md](./INVARIANTS.md) - properties the reward ledger, vesting math, and bridge settlement must preserve.
 - [RISKS.md](./RISKS.md) - operational and integration risks.
 - [ADMINISTRATION.md](./ADMINISTRATION.md) - deployment parameters and one-time admin action.
+- [SKILLS.md](./SKILLS.md) - quick index for routing tasks into the right sub-document.
+- [STYLE_GUIDE.md](./STYLE_GUIDE.md) - Solidity and repo conventions used across the Juicebox V6 ecosystem.
+- [AUDIT_INSTRUCTIONS.md](./AUDIT_INSTRUCTIONS.md) - audit framing, targets, and suggested hunting grounds.
+- [CHANGELOG.md](./CHANGELOG.md) - V5 to V6 migration changelog.
 - [references/operations.md](./references/operations.md) - operator checklist.
 - [references/runtime.md](./references/runtime.md) - runtime behavior notes.
 
