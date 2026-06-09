@@ -262,6 +262,43 @@ contract JBXDistributorEdgesTest is Test {
         assertEq(currentRoundAmount, amount);
     }
 
+    /// @notice A zero-stake round (unclaimable forever) is recyclable even BEFORE its claim deadline — otherwise its
+    /// funds would be stranded permanently under a never-expiring (`CLAIM_DURATION == 0`) configuration.
+    function test_recycleExpiredRewards_zeroStakeRoundRecyclesBeforeExpiry() external {
+        // Fund round 0 with zero active votes so the pot can never be claimed.
+        uint256 amount = 500 ether;
+        uint256 snapshotBlock = block.number - 1;
+        _jbx.setPastTotalActiveVotes({blockNumber: snapshotBlock, activeVotes: 0});
+        _rewardToken.mint({account: address(this), amount: amount});
+        _rewardToken.approve({spender: address(_distributor), value: amount});
+        _distributor.processSplitWith(_context({token: address(_rewardToken), amount: amount}));
+
+        // Advance into round 1 but stay BEFORE round 0's claim deadline (CLAIM_DURATION = 2 days), so the round is
+        // unclaimable AND not yet expired.
+        vm.warp(_distributor.roundStartTimestamp(1) + 1);
+        uint256 nowRound = _distributor.currentRound();
+        assertGt(nowRound, 0, "advanced past round 0");
+
+        (,,, uint48 claimDeadline, uint208 totalStake) = _distributor.rewardRoundOf({
+            hook: address(_jbx), groupId: 0, token: IERC20(address(_rewardToken)), round: 0
+        });
+        assertEq(totalStake, 0, "round 0 has zero stake");
+        // forge-lint: disable-next-line(block-timestamp)
+        assertGt(claimDeadline, block.timestamp, "round 0 is not yet expired");
+
+        uint256[] memory rounds = new uint256[](1);
+        rounds[0] = 0;
+        uint256 recycled = _distributor.recycleExpiredRewards({
+            hook: address(_jbx), token: IERC20(address(_rewardToken)), rounds: rounds
+        });
+        assertEq(recycled, amount, "zero-stake round recycled despite not being expired");
+
+        (uint208 movedAmount,,,,) = _distributor.rewardRoundOf({
+            hook: address(_jbx), groupId: 0, token: IERC20(address(_rewardToken)), round: nowRound
+        });
+        assertEq(movedAmount, amount, "funds moved to current round, not stranded");
+    }
+
     /// @notice Build a split hook context.
     /// @param token The token sent to the split hook.
     /// @param amount The split amount.

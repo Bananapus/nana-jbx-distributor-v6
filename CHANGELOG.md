@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.0.3
+
+### Fixed
+
+- `JBDistributor._recycleExpiredRewardRound` now recycles a reward round whose snapshot `totalStake` is zero
+  regardless of its claim deadline. Such a round can never be claimed; gating recycling on expiry stranded its funds
+  permanently under a never-expiring (`CLAIM_DURATION == 0`) configuration. Live, staked, unexpired rounds are
+  unaffected.
+
 ## 0.0.1
 
 Initial JBX distributor package.
