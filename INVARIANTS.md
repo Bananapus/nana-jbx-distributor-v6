@@ -61,7 +61,8 @@
 - Nonzero claim duration gives each funded round one fixed deadline.
 - Expiry recycling moves only `amount - claimedAmount`.
 - Recycling preserves rewards that already started vesting.
-- Recycled inventory is recorded into the current JBX active-voter round.
+- Recycled inventory is recorded into a later current JBX active-voter round.
+- Passing the current round is a no-op, including for zero-stake rounds that can never be claimed.
 
 ## Revnet Vesting Loans
 

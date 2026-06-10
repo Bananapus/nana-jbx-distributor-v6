@@ -608,7 +608,8 @@ contract JBXDistributor is JBDistributor, Ownable, IJBXDistributor {
     }
 
     /// @notice Recycle unclaimed rewards from expired JBX reward rounds into the current reward round.
-    /// @dev Overrides the inherited hook-keyed API so callers cannot recycle any reward pool other than JBX.
+    /// @dev Overrides the inherited hook-keyed API so callers cannot recycle any reward pool other than JBX. Passing
+    /// the current round is a no-op; recycled inventory only moves into a later JBX reward round.
     /// @param hook The configured JBX token.
     /// @param token The reward token to recycle.
     /// @param rounds The reward rounds to recycle.

@@ -43,6 +43,9 @@ Each funded round records:
 - `IJBActiveVotes.getPastTotalActiveVotes(snapshotBlock)` as the denominator
 - the configured claim deadline, if `CLAIM_DURATION != 0`
 
+Recycling only moves inventory forward. If a keeper passes the current reward round to `recycleExpiredRewards`, the call
+is a no-op, including for zero-active rounds; those rounds can be recycled once a later round is current.
+
 Each staker's numerator is `IVotes(JBX).getPastVotes(staker, snapshotBlock)`. The delegate address determines whether
 the holder has active voting power, but rewards belong to the encoded holder address. Helpers can begin vesting or
 collect to that canonical holder, so stakers do not need to submit every reward-cycle transaction themselves.
