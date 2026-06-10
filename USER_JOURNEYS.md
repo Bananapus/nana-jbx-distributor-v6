@@ -83,10 +83,11 @@ Outcome:
 ## 8. Expired Inventory Recycles
 
 If `CLAIM_DURATION` is nonzero, any caller can recycle expired reward rounds with `recycleExpiredRewards`. Only the
-unmaterialized remainder of an expired round is recycled.
+unmaterialized remainder of an expired round is recycled. A zero-active prior round can also recycle because it has no
+possible claimant, but the current round never recycles into itself.
 
 Outcome:
 
 - rewards that started vesting are preserved
-- rewards that did not start vesting enter the current active-voter round
+- rewards that did not start vesting enter a later active-voter round
 - deployments with `CLAIM_DURATION == 0` keep reward rounds non-expiring

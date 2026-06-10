@@ -25,5 +25,6 @@
 ## Recycling
 
 1. Wait until the reward round claim deadline has passed.
-2. Call `recycleExpiredRewards(address(JBX), token, rounds)`.
-3. Verify only the unmaterialized amount entered the current reward round.
+2. Confirm the round is older than `currentRound()`; same-round recycle requests intentionally do nothing.
+3. Call `recycleExpiredRewards(address(JBX), token, rounds)`.
+4. Verify only the unmaterialized amount entered the current reward round.

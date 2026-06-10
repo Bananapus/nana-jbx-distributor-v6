@@ -50,7 +50,9 @@ loans can set `revLoans` to the zero address.
 ### Zero-Denominator Rounds
 
 If a reward round records zero active JBX votes, no staker can claim it pro-rata. With a nonzero claim duration, that
-inventory can recycle into a later active-voter round.
+inventory can recycle into a later active-voter round. Passing the current round to `recycleExpiredRewards` is a no-op,
+so repeated keeper calls cannot inflate the raw `rewardRoundOf.amount` or `claimedAmount` fields by recycling a round
+into itself.
 
 ### Helper Collection Confusion
 

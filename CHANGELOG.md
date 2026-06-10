@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.4
+
+### Fixed
+
+- `JBDistributor._recycleExpiredRewardRound` now treats same-round recycle requests as no-ops. Zero-active reward
+  rounds still recycle once a later round is current, but they cannot recycle into themselves and inflate raw
+  `rewardRoundOf.amount` or `claimedAmount` fields for off-chain indexers.
+
 ## 0.0.3
 
 ### Fixed

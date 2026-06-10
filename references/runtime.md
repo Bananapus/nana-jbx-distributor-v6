@@ -23,4 +23,5 @@ the value to mainnet.
 ## Claim Deadlines
 
 `CLAIM_DURATION == 0` means rounds do not expire. Nonzero claim duration creates a fixed deadline for each funded round.
-After the deadline, unmaterialized inventory can recycle into the current JBX reward round.
+After the deadline, unmaterialized inventory can recycle into the current JBX reward round. Zero-active prior rounds
+can recycle before the deadline because no staker can claim them, but passing the current round is a no-op.

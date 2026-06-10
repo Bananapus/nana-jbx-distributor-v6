@@ -299,6 +299,63 @@ contract JBXDistributorEdgesTest is Test {
         assertEq(movedAmount, amount, "funds moved to current round, not stranded");
     }
 
+    /// @notice A zero-stake current round is unclaimable, but it must wait for a later round before recycling so the
+    /// round cannot repeatedly recycle into itself and inflate raw accounting fields.
+    function test_recycleExpiredRewards_zeroStakeCurrentRoundNoOps() external {
+        uint256 amount = 500 ether;
+        uint256 snapshotBlock = block.number - 1;
+        _jbx.setPastTotalActiveVotes({blockNumber: snapshotBlock, activeVotes: 0});
+        _rewardToken.mint({account: address(this), amount: amount});
+        _rewardToken.approve({spender: address(_distributor), value: amount});
+        _distributor.processSplitWith(_context({token: address(_rewardToken), amount: amount}));
+
+        uint256 round = _distributor.currentRound();
+        assertEq(round, 0, "funded round is still current");
+
+        uint256[] memory rounds = new uint256[](1);
+        rounds[0] = round;
+        uint256 recycled = _distributor.recycleExpiredRewards({
+            hook: address(_jbx), token: IERC20(address(_rewardToken)), rounds: rounds
+        });
+        assertEq(recycled, 0, "current round cannot recycle into itself");
+
+        (uint208 recordedAmount,, uint208 claimedAmount,, uint208 totalStake) = _distributor.rewardRoundOf({
+            hook: address(_jbx), groupId: 0, token: IERC20(address(_rewardToken)), round: round
+        });
+        assertEq(recordedAmount, amount, "amount did not inflate");
+        assertEq(claimedAmount, 0, "round was not marked settled");
+        assertEq(totalStake, 0, "round remains zero-stake");
+
+        recycled = _distributor.recycleExpiredRewards({
+            hook: address(_jbx), token: IERC20(address(_rewardToken)), rounds: rounds
+        });
+        assertEq(recycled, 0, "repeat current-round sweep is still a no-op");
+
+        (recordedAmount,, claimedAmount,,) = _distributor.rewardRoundOf({
+            hook: address(_jbx), groupId: 0, token: IERC20(address(_rewardToken)), round: round
+        });
+        assertEq(recordedAmount, amount, "repeat sweep did not inflate amount");
+        assertEq(claimedAmount, 0, "repeat sweep did not inflate claimed amount");
+
+        vm.warp(_distributor.roundStartTimestamp(1) + 1);
+        uint256 nowRound = _distributor.currentRound();
+        assertGt(nowRound, round, "advanced into a later round");
+
+        recycled = _distributor.recycleExpiredRewards({
+            hook: address(_jbx), token: IERC20(address(_rewardToken)), rounds: rounds
+        });
+        assertEq(recycled, amount, "zero-stake prior round still recycles forward");
+
+        (,, claimedAmount,,) = _distributor.rewardRoundOf({
+            hook: address(_jbx), groupId: 0, token: IERC20(address(_rewardToken)), round: round
+        });
+        (uint208 movedAmount,,,,) = _distributor.rewardRoundOf({
+            hook: address(_jbx), groupId: 0, token: IERC20(address(_rewardToken)), round: nowRound
+        });
+        assertEq(claimedAmount, amount, "prior round settled after forward recycle");
+        assertEq(movedAmount, amount, "later round receives recycled amount");
+    }
+
     /// @notice Build a split hook context.
     /// @param token The token sent to the split hook.
     /// @param amount The split amount.
